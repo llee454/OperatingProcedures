@@ -1,16 +1,16 @@
 # This script generates a trace using Spike and the processor model and compares them to determine at which address the two traces differ.
 
-# test_file="riscv-tests/rv64ui-v-add"
+echo "Usage: compare_trace.sh SPIKE_TRACE_FILE MODEL_TRACE_FILE"
 
 # I. generate spike trace
-spike_trace_file="rv64ui-p-add.out"
-echo "spike is running"
+spike_trace_file=$1
+# spike_trace_file="rv64ui-p-add.out"
 # /scratch/larryl/srcs/riscv-tools/riscv-isa-sim/spike -l --isa="RV32IMAFDC" riscv-tests/rv32uf-v-fadd &> rv32uf-v-fadd.out
-/scratch/larryl/srcs/riscv-tools/riscv-isa-sim/spike -l riscv-tests/rv64ui-p-add &> rv64ui-p-add.out
-echo "spike is done"
+# /scratch/larryl/srcs/riscv-tools/riscv-isa-sim/spike -l riscv-tests/rv64ui-p-add &> rv64ui-p-add.out
 
 # II. generate the model trace
-model_trace_file="haskelldump/rv64ui-p-add.out"
+model_trace_file=$2
+# model_trace_file="haskelldump/rv64ui-p-add.out"
 # srun --cpus-per-task=2 --mem=128000 runElf.sh -v --haskell riscv-tests/rv64ui-v-add
 
 # III. reformat the spike trace
@@ -85,8 +85,8 @@ awk '
   }
 ' $model_trace_file > $model_trace_file_formatted
 
-echo $spike_trace_file_formatted
-echo $model_trace_file_formatted
+echo "spike trace file formatted: $spike_trace_file_formatted"
+echo "model trace file formatted: $model_trace_file_formatted"
 
 # V. display difference
 vimdiff $spike_trace_file_formatted $model_trace_file_formatted
