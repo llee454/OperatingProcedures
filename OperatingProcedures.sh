@@ -8,7 +8,9 @@ function createWorkingCopy () {
   cd "RiscvSpecFormal-$branch-$datestamp";
   git submodule update --init;
   git submodule update --remote;
+  git config credential.helper store;
   cd ProcKami;
+  git config credential.helper store;
   git checkout $branch;
   cd ..;
   ln --symbolic /nettmp/netapp1a/vmurali/riscv-tests/isa riscv-tests;
@@ -29,12 +31,13 @@ function initTest {
   git pull origin master;
   git checkout $branchName;
   git merge master;
-  echo "Notice: Now run the test process";
+  echo "Now run the test process";
 }
 
 # Run after initTest
 # Runs the RISC-V test suite tests.
 function runTestProcess {
+  branchName=$1
   cp -v /nettmp/netapp1a/vmurali/RiscvSpecFormal/{run32.sh,run32v.sh,run64.sh,run64v.sh,runAll.sh} .;
   read -p "comment out lines related to verilog in runTests";
   rm -v screenlog.0;
@@ -52,7 +55,23 @@ function runTestProcess {
   ./runElf.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa/rv32ui-v-add --xlen 32;
   read -p "Did all of the tests pass (cat slurm-XXX.out)? [Y/N]" submitPR;
   if [[ $submitPR = "Y" ]];
-    then git request-pull;
+    then
+      cd ProcKami;
+      git push origin $branchName;
+      echo "Submit a PR. WARNING ALWAYS SQUASH MERGE"
   fi;
-  echo "Notice: Done";
+  echo "Done";
+}
+
+# Accepts two arguments: testName, the test name; and xlen, either
+# "32" or "64"; executes the test in both the Haskell Simulator and
+# the Verilog simulator; and displays the traces in vimdiff.
+function compareVerilogHaskell {
+  testName=$1
+  xlen=$2
+  ./doGenerate.sh --haskell --parallel;
+  ./runElf.sh --debug --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa/$testName --xlen $xlen;
+  ./doGenerate.sh --parallel --xlen $xlen;
+  ./runElf.sh --debug --path /nettmp/netapp1a/vmurali/riscv-tests/isa/$testName --xlen $xlen;
+  vimdiff haskelldump/$testName.out verilogdump/$testName.out;
 }
