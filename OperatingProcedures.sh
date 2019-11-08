@@ -36,6 +36,7 @@ function execute () {
 # appropriately named directory; and compiles the code.
 function createWorkingCopy () {
   branch=$1;
+  compile=$2;
   datestamp=$(date +%m%d%y);
   git clone git@github.com:sifive/RiscvSpecFormal.git "RiscvSpecFormal-$branch-$datestamp";
   cd "RiscvSpecFormal-$branch-$datestamp";
@@ -47,7 +48,10 @@ function createWorkingCopy () {
   git checkout $branch;
   cd ..;
   ln --symbolic /nettmp/netapp1a/vmurali/riscv-tests/isa riscv-tests;
-  ./doGenerate.sh --haskell --parallel;
+  if [[ $compile ]]
+  then
+    ./doGenerate.sh --haskell --parallel;
+  fi
 };
 
 # Accepts two arguments: issueNumber, the issue that the current
@@ -63,7 +67,7 @@ function initTest {
   git checkout master;
   git pull origin master;
   git checkout $branchName;
-  git merge master;
+  git rebase origin/master # https://sifive.slack.com/archives/C9SGWP6BW/p1573166746001300
   echo "Now run the test process";
 }
 
