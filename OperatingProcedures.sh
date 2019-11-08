@@ -1,3 +1,36 @@
+verbose=0
+
+# Accepts one argument: message, a message
+# string; and prints the given message iff the
+# verbose flag has been set.
+function error () {
+  local emsg=$1
+
+  echo -e "\033[91mError:\033[0m $emsg" >&2
+  exit 1
+}
+
+# Accepts one argument: message, a message
+# string; and prints the given message
+function notice () {
+  local msg=$1
+
+  echo -e "\033[92mNotice:\033[0m $msg" >&2
+}
+
+# Accepts one argument, $cmd, a bash command
+# string, executes the command and returns an
+# error message if it fails.
+function execute () {
+  local cmd=$1
+  if [[ $verbose == 1 ]]
+  then
+    echo -e "\033[93mNotice:\033[0m $cmd" >&2
+  fi
+  eval $cmd
+  [ $? == 0 ] || error "An error occured while trying to execute the following command: \"$cmd\"."
+}
+
 # Accepts one argument: issue, an issue number string; clones
 # the current version of the RiscvSpecFormal repo into an
 # appropriately named directory; and compiles the code.
@@ -74,4 +107,41 @@ function compareVerilogHaskell {
   ./doGenerate.sh --parallel --xlen $xlen;
   ./runElf.sh --debug --path /nettmp/netapp1a/vmurali/riscv-tests/isa/$testName --xlen $xlen;
   vimdiff haskelldump/$testName.out verilogdump/$testName.out;
+}
+
+# Accepts no arguments; compiles the verilog generator, CompAction,
+# with profiling support; runs the Verilog generator and saves the
+# resulting heap profile to a file.
+function generateVerilogHeapDump {
+  datestamp=$(date +%m%d%y);
+  make -j;
+  cd Kami && ./fixHaskell.sh ../HaskellGen .. && cd ..
+  model=model64
+  cat Haskell/Target.raw > HaskellGen/Target.hs
+  echo "rtlMod = separateModRemove $model" >> HaskellGen/Target.hs
+  execute "ghc -j -prof -fprof-auto -O1 --make -iHaskellGen -iKami -iKami/Compiler Kami/Compiler/CompAction.hs"
+  execute "Kami/Compiler/CompAction +RTS -p -h -RTS > System.sv"
+  # Dump stack if exception occurs.
+  # execute "ghc -j -prof -fprof-auto -rtsopts -fprof-cafs -O1 --make -iHaskellGen -iKami -iKami/Compiler Kami/Compiler/CompAction.hs"
+  # execute "Kami/Compiler/CompAction +RTS -xc -RTS > System.sv"
+  cp CompAction.prof "CompAction-$datestamp.prof"
+  notice "Done. See CompAction-$datestamp.prof."
+}
+
+# Accepts no arguments; compiles the Haskell simulator, Main,
+# with profiling support; runs the simulator and saves the
+# resulting heap profile to a file.
+function generateHaskellHeapDump {
+  datestamp=$(date +%m%d%y);
+  make -j;
+  cd Kami && ./fixHaskell.sh ../HaskellGen .. && cd ..
+  model=model64
+  cp Haskell/UART.hs HaskellGen
+  notice "Compiling the Haskell generator."
+  cp Haskell/HaskellTarget.hs HaskellGen
+  cp Haskell/Main.hs HaskellGen
+  execute "ghc -j -prof -fprof-auto -O1 --make -iHaskellGen -iKami ./Haskell/Main.hs"
+  ./runElf.sh --heap --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa/rv64ui-p-add --xlen 64
+  cp -v Main.prof "Main-$datestamp.prof"
+  notice "Done. See Main-$datestamp.prof."
 }
