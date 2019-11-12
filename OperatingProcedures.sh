@@ -46,9 +46,9 @@ function execute {
 # the current version of the RiscvSpecFormal repo into an
 # appropriately named directory; and compiles the code.
 function createWorkingCopy {
-  branch=$1;
-  compile=$2;
-  datestamp=$(date +%m%d%y);
+  local branch=$1;
+  local compile=$2;
+  local datestamp=$(date +%m%d%y);
   git clone git@github.com:sifive/RiscvSpecFormal.git "RiscvSpecFormal-$branch-$datestamp";
   cd "RiscvSpecFormal-$branch-$datestamp";
   git submodule update --init;
@@ -71,10 +71,10 @@ function createWorkingCopy {
 # "b" that distinguishes this branch from others; and create a merge
 # branch based on the current directory.
 function initTest {
-  issueNumber=$1;
-  suffix=$2;
-  datestamp=$(date +%m%d%y);
-  branchName="merge-issue$issueNumber-$datestamp""$suffix"
+  local issueNumber=$1;
+  local suffix=$2;
+  local datestamp=$(date +%m%d%y);
+  local branchName="merge-issue$issueNumber-$datestamp""$suffix"
   git branch $branchName;
   git checkout master;
   git pull origin master;
@@ -118,8 +118,8 @@ function runTestProcess {
 # "32" or "64"; executes the test in both the Haskell Simulator and
 # the Verilog simulator; and displays the traces in vimdiff.
 function compareVerilogHaskell {
-  testName=$1
-  xlen=$2
+  local testName=$1
+  local xlen=$2
   ./doGenerate.sh --haskell --parallel;
   ./runElf.sh --debug --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa/$testName --xlen $xlen;
   ./doGenerate.sh --parallel --xlen $xlen;
@@ -132,10 +132,10 @@ function compareVerilogHaskell {
 # with profiling support; runs the Verilog generator and saves the
 # resulting heap profile to a file.
 function generateVerilogHeapDump {
-  datestamp=$(date +%m%d%y);
+  local datestamp=$(date +%m%d%y);
   make -j;
   cd Kami && ./fixHaskell.sh ../HaskellGen .. && cd ..
-  model=model64
+  local model=model64
   cat Haskell/Target.raw > HaskellGen/Target.hs
   echo "rtlMod = separateModRemove $model" >> HaskellGen/Target.hs
   execute "ghc -j -prof -fprof-auto -O1 --make -iHaskellGen -iKami -iKami/Compiler Kami/Compiler/CompAction.hs"
