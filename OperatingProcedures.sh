@@ -1,3 +1,13 @@
+# This file contains a collection of Bash functions that automate
+# common operating procedures performed by me (Larry D. Lee Jr.) at
+# SiFive.
+#
+# Note: you should always maintain a log of the output produced by
+# these commands. To do so, you can either use "screen -L COMMAND" or
+# "COMMAND &> LOGFILE &" followed by "disown PID" to disassociate it
+# from you. If the command accepts user input experiment with using
+# the "yes" command in combination.
+
 verbose=0
 
 # Accepts one argument: message, a message

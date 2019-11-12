@@ -12,7 +12,7 @@ BEGIN {
   profEntries[0]["name"] = "test";
 }
 function sortEntries(index1,entry1,index2,entry2){
-  return (entry1["percentMemTotal"] < entry2["percentMemTotal"]);
+  return (entry1["avgMemPerCall"] < entry2["avgMemPerCall"]);
 }
 {
   if (match ($0, "total alloc = ([[:digit:],]+)", a)) {
@@ -28,7 +28,7 @@ function sortEntries(index1,entry1,index2,entry2){
     entry["percentMemTotal"] = $9; # including functions called from the entry function
 
     if (entry["numCalls"] > 0 && entry["percentMemTotal"] > 0) {
-      entry["memTotal"] = entry["percentMemTotal"] / 100 * totalMem; # total memory in MB.
+      entry["memTotal"] = entry["percentMemTotal"] * .01 * totalMem; # total memory in MB.
       entry["avgMemPerCall"] = entry["memTotal"] / entry["numCalls"];
 
       numEntries = length(profEntries) + 1;
