@@ -13,7 +13,7 @@ verbose=0
 # Accepts one argument: message, a message
 # string; and prints the given message iff the
 # verbose flag has been set.
-function error () {
+function error {
   local emsg=$1
 
   echo -e "\033[91mError:\033[0m $emsg" >&2
@@ -22,7 +22,7 @@ function error () {
 
 # Accepts one argument: message, a message
 # string; and prints the given message
-function notice () {
+function notice {
   local msg=$1
 
   echo -e "\033[92mNotice:\033[0m $msg" >&2
@@ -31,7 +31,7 @@ function notice () {
 # Accepts one argument, $cmd, a bash command
 # string, executes the command and returns an
 # error message if it fails.
-function execute () {
+function execute {
   local cmd=$1
   if [[ $verbose == 1 ]]
   then
@@ -41,10 +41,11 @@ function execute () {
   [ $? == 0 ] || error "An error occured while trying to execute the following command: \"$cmd\"."
 }
 
+# Usage: createWorkingCopy BRANCH [Y]
 # Accepts one argument: issue, an issue number string; clones
 # the current version of the RiscvSpecFormal repo into an
 # appropriately named directory; and compiles the code.
-function createWorkingCopy () {
+function createWorkingCopy {
   branch=$1;
   compile=$2;
   datestamp=$(date +%m%d%y);
@@ -64,6 +65,7 @@ function createWorkingCopy () {
   fi
 };
 
+# Usage: initTest ISSUE [a,b,...]
 # Accepts two arguments: issueNumber, the issue that the current
 # directories edits fix; and suffix, a unique suffix such as "a" or
 # "b" that distinguishes this branch from others; and create a merge
@@ -81,6 +83,7 @@ function initTest {
   echo "Now run the test process";
 }
 
+# Usage: screen -L runTestProcess BRANCHNAME
 # Run after initTest
 # Runs the RISC-V test suite tests.
 function runTestProcess {
@@ -90,7 +93,7 @@ function runTestProcess {
   rm -v screenlog.0;
   rm -v slurm-*.out;
   read -p "enter cntrl-a cntrl-d after screen starts";
-  screen -L ./runAll.sh;
+  ./runAll.sh;
   echo "monitor the tests using 'tail -f screenlog.0'";
   echo "monitor the tests using 'watch squeue -u larryl'";
   read -p "start next step once tests finish";
@@ -110,6 +113,7 @@ function runTestProcess {
   echo "Done";
 }
 
+# Usage: compareVerilogHaskell TESTNAME (32|64)
 # Accepts two arguments: testName, the test name; and xlen, either
 # "32" or "64"; executes the test in both the Haskell Simulator and
 # the Verilog simulator; and displays the traces in vimdiff.
@@ -123,6 +127,7 @@ function compareVerilogHaskell {
   vimdiff haskelldump/$testName.out verilogdump/$testName.out;
 }
 
+# Usage: generateVerilogHeapDump &> LOGFILE & [; disown $!]
 # Accepts no arguments; compiles the verilog generator, CompAction,
 # with profiling support; runs the Verilog generator and saves the
 # resulting heap profile to a file.
@@ -140,22 +145,4 @@ function generateVerilogHeapDump {
   # execute "Kami/Compiler/CompAction +RTS -xc -RTS > System.sv"
   cp CompAction.prof "CompAction-$datestamp.prof"
   notice "Done. See CompAction-$datestamp.prof."
-}
-
-# Accepts no arguments; compiles the Haskell simulator, Main,
-# with profiling support; runs the simulator and saves the
-# resulting heap profile to a file.
-function generateHaskellHeapDump {
-  datestamp=$(date +%m%d%y);
-  make -j;
-  cd Kami && ./fixHaskell.sh ../HaskellGen .. && cd ..
-  model=model64
-  cp Haskell/UART.hs HaskellGen
-  notice "Compiling the Haskell generator."
-  cp Haskell/HaskellTarget.hs HaskellGen
-  cp Haskell/Main.hs HaskellGen
-  execute "ghc -j -prof -fprof-auto -O1 --make -iHaskellGen -iKami ./Haskell/Main.hs"
-  ./runElf.sh --heap --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa/rv64ui-p-add --xlen 64
-  cp -v Main.prof "Main-$datestamp.prof"
-  notice "Done. See Main-$datestamp.prof."
 }
