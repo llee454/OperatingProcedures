@@ -137,7 +137,7 @@ function runRiscvTests {
   rm runTests64.out runTests32.out
   runInBackground "time srun --cpus-per-task=32 --mem=10G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 64" "runTests64.out"
   runInBackground "time srun --cpus-per-task=32 --mem=10G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 32" "runTests32.out"
-  watch "tail --lines 10 runTests64.out; echo ===============; tail --lines 10 runTests32.out"
+  watch "tail --lines 30 runTests64.out | cut -c-80; echo ===============; tail --lines 30 runTests32.out | cut -c-80"
 }
 
 # Usage: compareVerilogHaskell TESTNAME (32|64)
