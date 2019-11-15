@@ -55,8 +55,8 @@ filename=$1
 [[ -z $filename ]] && error "Invalid command line. The FILENAME argument is missing."
 
 model_trace_file="haskelldump/$filename.out"
-model_trace_file_formatted=$(mktemp reference-model-XXX)
-trace_file_formatted=$(mktemp model-XXX)
+model_trace_file_formatted=$(mktemp model-XXX)
+trace_file_formatted=$(mktemp ref-model-XXX)
 
 echo "reference trace file: $trace_file_formatted"
 echo "model trace file: $model_trace_file_formatted"

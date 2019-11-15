@@ -17,7 +17,7 @@ function error {
   local emsg=$1
 
   echo -e "\033[91mError:\033[0m $emsg" >&2
-  exit 1
+#  exit 1
 }
 
 # Accepts one argument: message, a message
@@ -39,6 +39,21 @@ function execute {
   fi
   eval $cmd
   [ $? == 0 ] || error "An error occured while trying to execute the following command: \"$cmd\"."
+}
+
+# Accepts two arguments: cmd, a bash command; and logFileName,
+# a file name string; and runs cmd in the background while logging
+# its output to logFileName. If logFileName is omitted, this function
+# will autogenerate a log file and save the output there.
+function runInBackground {
+  local cmd=$1
+  local logFileName=$2
+  if [ -z $logFileName ]
+  then
+    local datestamp=$(date +%m%d%y);
+    logFileName=$(mktemp "runInBackground-$datestamp-XXXX")
+  fi
+  { $cmd; } &> $logFileName & disown $!
 }
 
 # Usage: createWorkingCopy BRANCH [Y]
@@ -93,7 +108,7 @@ function runTestProcess {
   rm -v screenlog.0;
   rm -v slurm-*.out;
   read -p "enter cntrl-a cntrl-d after screen starts";
-  ./runAll.sh;
+  screen -L ./runAll.sh;
   echo "monitor the tests using 'tail -f screenlog.0'";
   echo "monitor the tests using 'watch squeue -u larryl'";
   read -p "start next step once tests finish";
@@ -113,6 +128,18 @@ function runTestProcess {
   echo "Done";
 }
 
+# Usage: runRiscvTests
+# Runs the RISC-V test suite in the Haskell Kami Processor simulator
+# and stores the resulting trace files in haskelldump.
+# Note: you must run doGenerate to generate the Haskell simulator
+# before running this command.
+function runRiscvTests {
+  rm runTests64.out runTests32.out
+  runInBackground "time srun --cpus-per-task=32 --mem=10G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 64" "runTests64.out"
+  runInBackground "time srun --cpus-per-task=32 --mem=10G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 32" "runTests32.out"
+  watch "tail --lines 10 runTests64.out; echo ===============; tail --lines 10 runTests32.out"
+}
+
 # Usage: compareVerilogHaskell TESTNAME (32|64)
 # Accepts two arguments: testName, the test name; and xlen, either
 # "32" or "64"; executes the test in both the Haskell Simulator and
@@ -127,10 +154,11 @@ function compareVerilogHaskell {
   vimdiff haskelldump/$testName.out verilogdump/$testName.out;
 }
 
-# Usage: generateVerilogHeapDump &> LOGFILE & [; disown $!]
+# Usage: generateVerilogHeapDump
 # Accepts no arguments; compiles the verilog generator, CompAction,
 # with profiling support; runs the Verilog generator and saves the
 # resulting heap profile to a file.
+# Note: consider: runInBackgroung generateVerilogHeapDump
 function generateVerilogHeapDump {
   local datestamp=$(date +%m%d%y);
   make -j;
