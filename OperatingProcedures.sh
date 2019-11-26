@@ -41,6 +41,14 @@ function execute {
   [ $? == 0 ] || error "An error occured while trying to execute the following command: \"$cmd\"."
 }
 
+# Usage: listFunctions
+# Accepts no arguments, and prints a list of the functions defined in
+# this script.
+function listFunctions {
+  grep --color --extended 'Usage:' ~/OperatingProcedures/OperatingProcedures.sh
+}
+
+# Usage: runInBackground "CMD"
 # Accepts two arguments: cmd, a bash command; and logFileName,
 # a file name string; and runs cmd in the background while logging
 # its output to logFileName. If logFileName is omitted, this function
@@ -53,7 +61,20 @@ function runInBackground {
     local datestamp=$(date +%m%d%y);
     logFileName=$(mktemp "runInBackground-$datestamp-XXXX")
   fi
-  { $cmd; } &> $logFileName & disown $!
+  notice "running $cmd in background and logging output to $logFileName"
+  eval "{ $cmd; }" &> $logFileName & disown $!
+}
+
+# Usage: checkMemUsage
+# Prints out the amount of disk space your using and saves a fuller
+# report to file named checkMemUsage.out.
+function checkMemUsage {
+  fileName=$(mktemp "checkMemUsage-XXX.out")
+  notice "saving disk usage report to $fileName"
+  du --human-readable --total /nettmp/netapp1a/llee | sort --human-numeric-sort > $fileName
+  du --human-readable --total /scratch/larryl | sort --human-numeric-sort > $fileName
+  notice "The top twenty most expensive files and directories."
+  tail --lines 20 $fileName
 }
 
 # Usage: createWorkingCopy BRANCH [Y]
@@ -128,16 +149,39 @@ function runTestProcess {
   echo "Done";
 }
 
-# Usage: runRiscvTests
+# Usage: runRiscvHaskellTests
 # Runs the RISC-V test suite in the Haskell Kami Processor simulator
 # and stores the resulting trace files in haskelldump.
 # Note: you must run doGenerate to generate the Haskell simulator
 # before running this command.
-function runRiscvTests {
-  rm runTests64.out runTests32.out
-  runInBackground "time srun --cpus-per-task=32 --mem=10G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 64" "runTests64.out"
-  runInBackground "time srun --cpus-per-task=32 --mem=10G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 32" "runTests32.out"
-  watch "tail --lines 30 runTests64.out | cut -c-80; echo ===============; tail --lines 30 runTests32.out | cut -c-80"
+function runRiscvHaskellTests {
+  rm -f runTests64.out runTests32.out
+  runInBackground "time srun --priority=TOP --cpus-per-task=32 --mem=12G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 64" "runTests64.out"
+  runInBackground "time srun --priority=TOP --cpus-per-task=32 --mem=12G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 32" "runTests32.out"
+  watch "tail --lines 20 runTests64.out | cut -c-80; echo ===============; tail --lines 20 runTests32.out | cut -c-80"
+}
+
+# Usage buildVerilog
+function buildVerilog {
+  local datestamp=$(date +%m%d%y);
+  local logFileName="buildVerilog-$datestamp.out"
+  runInBackground "./doGenerate.sh --parallel --xlen 64 && ./doGenerate.sh --parallel --xlen 32" $logFileName
+  watch "tail --lines 40 $logFileName | cut -c-80"
+}
+
+# Usage: runRiscvVerilogTests
+# Runs the RISC-V test suite in the Haskell Kami Processor simulator
+# and stores the resulting trace files in verilogdump.
+# Note: you must run buildVerilog to generate the Verilog simulator
+# before running this command.
+function runRiscvVerilogTests {
+  local datestamp=$(date +%m%d%y);
+  local logFileName64="runVerilogTests64-$datestamp.out"
+  local logFileName32="runVerilogTests32-$datestamp.out"
+  rm -f $logFileName64 $logFileName32
+  runInBackground "time srun --cpus-per-task=32 --mem=12G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 64" $logFileName64
+  runInBackground "time srun --cpus-per-task=32 --mem=12G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 32" $logFileName32
+  watch "tail --lines 20 runTests64.out | cut -c-80; echo ===============; tail --lines 20 runTests32.out | cut -c-80"
 }
 
 # Usage: compareVerilogHaskell TESTNAME (32|64)
