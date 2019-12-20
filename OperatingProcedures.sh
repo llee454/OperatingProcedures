@@ -48,6 +48,16 @@ function listFunctions {
   grep --color --extended 'Usage:' ~/OperatingProcedures/OperatingProcedures.sh
 }
 
+# Usage: stringSearch "PATTERN" PATH
+# Accepts two arguments: PATTERN, a string; and PATH, a file path;
+# and displays every instance of PATTERN in the Coq Vernacular files
+# under PATH.
+function stringSearch {
+  local pattern=$1
+  local path=$2
+  grep --color --recursive --include '*.v' "$pattern" "$path"
+}
+
 # Usage: runInBackground "CMD"
 # Accepts two arguments: cmd, a bash command; and logFileName,
 # a file name string; and runs cmd in the background while logging
