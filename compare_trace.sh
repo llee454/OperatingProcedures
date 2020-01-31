@@ -228,6 +228,8 @@ function build_model {
   ' $model_trace_file > $model_trace_file_formatted
 }
 
-build_ref & build_model
+# build_ref &
+build_model
 sleep 5
-vimdiff $trace_file_formatted $model_trace_file_formatted
+# vimdiff $trace_file_formatted $model_trace_file_formatted
+vim $model_trace_file_formatted
