@@ -23,6 +23,7 @@ Options:
 
 Example
 ./substitute.sh cat hat example.txt
+./substitute.sh 'Dev([^iR])' 'Device\\1' example.txt
 
 Authors
 Larry Lee
@@ -57,7 +58,7 @@ do
   if [ -f $file ]
   then
     echo "processing $file";
-    awk "{ gsub(/$old/, "'"'"$new"'"'"); print }" $file > $file.tmp
+    awk "{ print (gensub(/$old/, "'"'"$new"'"'", "'"'"g"'"'")); }" $file > $file.tmp
     if [[ $backup == 1 ]]
     then
       cp $file $backup_path
