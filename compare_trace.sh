@@ -3,8 +3,9 @@
 # traces differ.
 
 xlen="64"
+oldFormat=0
 
-options=$(getopt --options="hx:" --longoptions="forvis:,help,xlen:" -- "$@")
+options=$(getopt --options="hx:" --longoptions="forvis:,help,old-format,xlen:" -- "$@")
 [ $? == 0 ] || error "Invalid command line. The command line includes one or more invalid command line parameters."
 
 eval set -- "$options"
@@ -40,6 +41,9 @@ Authors
   * Larry Lee <llee454@gmail.com> 
 EOF
       exit 0;;
+    --old-format)
+      oldFormat=1
+      shift 1;;
     -x|--xlen)
       xlen=$2
       shift 2;;
@@ -193,39 +197,44 @@ function build_ref {
 
 function build_model {
   # IV. reformat the model trace
-  awk '
-    BEGIN {
-      address_count = 0;
-    }
-    {
-      if ($0 ~ /Mode:/)  {
-        x["mode"] = $2;
-      }
-      if ($0 ~ /PC:/) {
-        x["pc"] = $2;
-      }
-      if (match ($0, "inst:([0-9a-f]*);", a)) {
-        x["inst"] = a[1];
-      }
-      if ($0 ~ /Reg Write Wrote/) {
-        x["result"] = $4;
-      }
-      if (0 != match ($0, "\\[pte_translate\\] the resulting paddr: { valid:1; data:([0-9a-f]*); }", a)) {
-        x["addresses"][address_count] = a[1];
-        address_count ++;
-      }
-      if ($0 ~ /Inc PC/) {
-        output = "mode: " x["mode"] " pc: " x["pc"] " inst: " x["inst"] " reg write: " x["result"] " physical addresses:";
-        for (i = 0; i < address_count; i ++) {
-          output = output " " sprintf ("%.16x", x["addresses"][i]);
-        }
-        print output;
-        output = "";
+  if [[ $oldFormat == 0 ]]
+  then
+    gawk -f ~/OperatingProcedures/summarize_trace.awk $model_trace_file > $model_trace_file_formatted
+  else
+    awk '
+      BEGIN {
         address_count = 0;
-        delete x;
       }
-    }
-  ' $model_trace_file > $model_trace_file_formatted
+      {
+        if ($0 ~ /Mode:/)  {
+          x["mode"] = $2;
+        }
+        if ($0 ~ /PC:/) {
+          x["pc"] = $2;
+        }
+        if (match ($0, "inst:([0-9a-f]*);", a)) {
+          x["inst"] = a[1];
+        }
+        if ($0 ~ /Reg Write Wrote/) {
+          x["result"] = $4;
+        }
+        if (0 != match ($0, "\\[pte_translate\\] the resulting paddr: { valid:1; data:([0-9a-f]*); }", a)) {
+          x["addresses"][address_count] = a[1];
+          address_count ++;
+        }
+        if ($0 ~ /Inc PC/) {
+          output = "mode: " x["mode"] " pc: " x["pc"] " inst: " x["inst"] " reg write: " x["result"] " physical addresses:";
+          for (i = 0; i < address_count; i ++) {
+            output = output " " sprintf ("%.16x", x["addresses"][i]);
+          }
+          print output;
+          output = "";
+          address_count = 0;
+          delete x;
+        }
+      }
+    ' $model_trace_file > $model_trace_file_formatted
+  fi
 }
 
 build_ref & build_model
