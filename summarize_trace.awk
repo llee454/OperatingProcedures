@@ -1,17 +1,16 @@
 # This script parses the trace file produced by the ProcKami model
 # and outputs a summarized version of this trace.
 BEGIN {
-  maxNumInsts = 1000
-  numInsts = 0
+}
+function pad(string, len, z) {
+  z = "0000000000000000";
+  return substr(substr(z, length(z) - len) string, length(string) + 1)
 }
 {
-  if (numInsts >= maxNumInsts) {
-    exit 0
-  }
   if (match ($0, "Mode: ([0-3])", matches)) {
     currInst["mode"] = matches[1]
   }
-  if (match ($0, "fetch pkt: { pc:([0-9a-f]*); inst:([0-9a-f]*)", matches)) {
+  if (match ($0, "\\[commit\\] exec_context_pkt: { pc:([0-9a-f]*);.*inst:([0-9a-f]*);", matches)) { 
     currInst["pc"] = matches[1]
     currInst["inst"] = matches[2]
   }
@@ -19,24 +18,20 @@ BEGIN {
     currInst["regWrite"]["value"] = matches[1]
     currInst["regWrite"]["reg"] = matches[3]
   }
-  if (match ($0, "\\[Device.memDeviceSendReqFn\\] req accepted: ([01])", matches)) {
-    currInst["memDeviceReq"]["accepted"] = matches[1] == 1
+  if (match ($0, "\\[decodeExecRule\\] memory unit req accepted: 1")) {
+    currInst["memDeviceReq"]["accepted"] = 1
   }
-  if (currInst["memDeviceReq"]["accepted"]) {
-    if (match ($0, "\\[Device.memDeviceSendReqFn\\] req: { tag:[0-9a-f]*; memOp:([0-9a-f]*); addr:([0-9a-f]*); data:([0-9a-f]*)", matches)) {
-      currInst["memDeviceReq"]["memOp"] = matches[1]
-      currInst["memDeviceReq"]["daddr"] = matches[2]
-      currInst["memDeviceReq"]["data"]  = matches[3]
-    }
+  if (match ($0, "\\[Arbiter.sendReq\\] clientReq: { tag:[0-9a-f]*; req:{ dtag:[0-9a-f]*; offset:[0-9a-f]*; paddr:([0-9a-f]*); memOp:[0-9a-f]*; data:([0-9a-f]*); }; }", matches)) {
+    currInst["memDeviceReq"]["paddr"] = matches[1]
+    currInst["memDeviceReq"]["data"]  = matches[2]
   }
   if (match ($0, "\\[commit\\] done\\.")) {
-    output = "mode: " currInst["mode"] " pc: " currInst["pc"] " inst: " currInst["inst"] " reg write: " currInst["regWrite"]["value"] " physical addresses:";
-    # if (currInst["memDeviceReq"]["accepted"]) {
-      # output = output " mem op: " currInst["memDeviceReq"]["memOp"] " device offset: " currInst["memDeviceReq"]["daddr"] " mem op data: " currInst["memDeviceReq"]["data"] 
-    # }
+    output = "mode: " currInst["mode"] " pc: " pad(currInst["pc"], 16) " inst: " pad(currInst["inst"], 8) " reg: " pad(currInst["regWrite"]["value"], 16)
+    if (currInst["memDeviceReq"]["accepted"]) {
+      output = output " dev paddr: " pad(currInst["memDeviceReq"]["paddr"], 16) " data: " pad(currInst["memDeviceReq"]["data"], 16)
+    }
     print output
     output = ""
     delete currInst
-    numInsts ++
   }
 }

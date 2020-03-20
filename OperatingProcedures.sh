@@ -87,24 +87,28 @@ function checkMemUsage {
   tail --lines 20 $fileName
 }
 
-# Usage: createWorkingCopy BRANCH [Y]
+# Usage: createWorkingCopy PROCKAMIBRANCH STDLIBKAMIBRANCH [Y]
 # Accepts one argument: issue, an issue number string; clones
 # the current version of the RiscvSpecFormal repo into an
 # appropriately named directory; and compiles the code.
 function createWorkingCopy {
-  local branch=$1;
-  local compile=$2;
+  local procKamiBranch=$1;
+  local stdLibKamiBranch=$2;
+  local compile=$3;
   local datestamp=$(date +%m%d%y);
-  git clone git@github.com:sifive/RiscvSpecFormal.git "RiscvSpecFormal-$branch-$datestamp";
-  cd "RiscvSpecFormal-$branch-$datestamp";
+  git clone git@github.com:sifive/RiscvSpecFormal.git "RiscvSpecFormal-$procKamiBranch-$datestamp";
+  cd "RiscvSpecFormal-$procKamiBranch-$datestamp";
   git submodule update --init;
   git submodule update --remote;
   git config credential.helper store;
   cd ProcKami;
   git config credential.helper store;
-  git checkout $branch;
+  git checkout $procKamiBranch;
   cd ..;
-  ln --symbolic /nettmp/netapp1a/vmurali/riscv-tests/isa riscv-tests;
+  cd StdLibKami;
+  git config credential.helper store;
+  git checkout $StdLibKamiBranch;
+  cd ..;
   if [[ $compile ]]
   then
     ./doGenerate.sh --haskell --parallel;
@@ -166,8 +170,9 @@ function runTestProcess {
 # before running this command.
 function runRiscvHaskellTests {
   rm -f runTests64.out runTests32.out
-  runInBackground "time srun --priority=TOP --cpus-per-task=32 --mem=12G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 64" "runTests64.out"
-  runInBackground "time srun --priority=TOP --cpus-per-task=32 --mem=12G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 32" "runTests32.out"
+  # runInBackground "time srun --priority=TOP --cpus-per-task=31 --mem=12G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 32" "runTests32.out" 
+  # runInBackground "time srun --priority=TOP --cpus-per-task=32 --mem=12G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" "runTests64.out"
+  runInBackground "time srun --cpus-per-task=32 ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" "runTests64.out"
   watch "tail --lines 20 runTests64.out | cut -c-80; echo ===============; tail --lines 20 runTests32.out | cut -c-80"
 }
 
@@ -189,8 +194,8 @@ function runRiscvVerilogTests {
   local logFileName64="runVerilogTests64-$datestamp.out"
   local logFileName32="runVerilogTests32-$datestamp.out"
   rm -f $logFileName64 $logFileName32
-  runInBackground "time srun --cpus-per-task=32 --mem=12G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 64" $logFileName64
-  runInBackground "time srun --cpus-per-task=32 --mem=12G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --skip --xlen 32" $logFileName32
+  runInBackground "time srun --cpus-per-task=32 --mem=12G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" $logFileName64
+  runInBackground "time srun --cpus-per-task=32 --mem=12G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 32" $logFileName32
   watch "tail --lines 20 runTests64.out | cut -c-80; echo ===============; tail --lines 20 runTests32.out | cut -c-80"
 }
 
