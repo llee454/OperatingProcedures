@@ -72,7 +72,8 @@ function runInBackground {
     logFileName=$(mktemp "runInBackground-$datestamp-XXXX")
   fi
   notice "running $cmd in background and logging output to $logFileName"
-  eval "{ $cmd; }" &> $logFileName & disown $!
+  eval "{ $cmd; }" &>> $logFileNamea 2>&1 & disown $!
+  notice "kill process id $! to stop the command."
 }
 
 # Usage: checkMemUsage
@@ -87,31 +88,41 @@ function checkMemUsage {
   tail --lines 20 $fileName
 }
 
-# Usage: createWorkingCopy PROCKAMIBRANCH STDLIBKAMIBRANCH [Y]
+# Usage: createWorkingCopy RISCVFORMALBRANCH PROCKAMIBRANCH STDLIBKAMIBRANCH [Y]
 # Accepts one argument: issue, an issue number string; clones
 # the current version of the RiscvSpecFormal repo into an
 # appropriately named directory; and compiles the code.
 function createWorkingCopy {
-  local procKamiBranch=$1;
-  local stdLibKamiBranch=$2;
-  local compile=$3;
-  local datestamp=$(date +%m%d%y);
-  git clone git@github.com:sifive/RiscvSpecFormal.git "RiscvSpecFormal-$procKamiBranch-$datestamp";
-  cd "RiscvSpecFormal-$procKamiBranch-$datestamp";
+  local riscvBranch=$1
+  local procKamiBranch=$2;
+  local stdLibKamiBranch=$3;
+  local compile=$4;
+  local suffix=$5;
+  if [[ $suffix == '' ]]
+  then
+    suffix=(date +%m%d%y);
+  fi
+  notice "pid: $$"
+  git clone git@github.com:sifive/RiscvSpecFormal.git "RiscvSpecFormal-$procKamiBranch-$suffix";
+  cd "RiscvSpecFormal-$procKamiBranch-$suffix";
   git submodule update --init;
   git submodule update --remote;
   git config credential.helper store;
+  git checkout $riscvBranch;
+  notice "set RiscvSpecFormal branch"
   cd ProcKami;
   git config credential.helper store;
   git checkout $procKamiBranch;
+  notice "set ProcKami branch"
   cd ..;
   cd StdLibKami;
   git config credential.helper store;
-  git checkout $StdLibKamiBranch;
+  git checkout $stdLibKamiBranch;
+  notice "set StdLibKami branch"
   cd ..;
-  if [[ $compile ]]
+  if [[ $compile == 'Y' ]]
   then
-    ./doGenerate.sh --haskell --parallel;
+    ./doGenerate.sh -x 64 --coq-sim --parallel;
   fi
 };
 
@@ -170,10 +181,21 @@ function runTestProcess {
 # before running this command.
 function runRiscvHaskellTests {
   rm -f runTests64.out runTests32.out
-  # runInBackground "time srun --priority=TOP --cpus-per-task=31 --mem=12G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 32" "runTests32.out" 
-  # runInBackground "time srun --priority=TOP --cpus-per-task=32 --mem=12G ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" "runTests64.out"
-  runInBackground "time srun --cpus-per-task=32 ./runTests.sh --haskell --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" "runTests64.out"
-  watch "tail --lines 20 runTests64.out | cut -c-80; echo ===============; tail --lines 20 runTests32.out | cut -c-80"
+  runInBackground "time srun --cpus-per-task=32 ./runTests.sh --haskell-sim --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" "runTests64Haskell.out"
+  runInBackground "time srun --cpus-per-task=32 ./runTests.sh --haskell-sim --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 32" "runTests32Haskell.out"
+  watch "tail --lines 20 runTests64Haskell.out | cut -c-80; echo ===============; tail --lines 20 runTests32Haskell.out | cut -c-80"
+}
+
+# Usage: runRiscvHaskellTests
+# Runs the RISC-V test suite in the Haskell Kami Processor simulator
+# and stores the resulting trace files in haskelldump.
+# Note: you must run doGenerate to generate the Haskell simulator
+# before running this command.
+function runRiscvCoqTests {
+  rm -f runTests64.out runTests32.out
+  runInBackground "time srun --cpus-per-task=32 ./runTests.sh --coq-sim --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" "runTests64Coq.out"
+  runInBackground "time srun --cpus-per-task=32 ./runTests.sh --coq-sim --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 32" "runTests32Coq.out"
+  watch "tail --lines 20 runTests64Coq.out | cut -c-80; echo ===============; tail --lines 20 runTests32Coq.out | cut -c-80"
 }
 
 # Usage buildVerilog
@@ -194,8 +216,8 @@ function runRiscvVerilogTests {
   local logFileName64="runVerilogTests64-$datestamp.out"
   local logFileName32="runVerilogTests32-$datestamp.out"
   rm -f $logFileName64 $logFileName32
-  runInBackground "time srun --cpus-per-task=32 --mem=12G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" $logFileName64
-  runInBackground "time srun --cpus-per-task=32 --mem=12G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 32" $logFileName32
+  runInBackground "time srun --cpus-per-task=32 --mem=30G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" $logFileName64
+  runInBackground "time srun --cpus-per-task=32 --mem=25G ./runTests.sh --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 32" $logFileName32
   watch "tail --lines 20 runTests64.out | cut -c-80; echo ===============; tail --lines 20 runTests32.out | cut -c-80"
 }
 
