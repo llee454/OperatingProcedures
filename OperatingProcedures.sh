@@ -55,7 +55,7 @@ function listFunctions {
 function stringSearch {
   local pattern=$1
   local path=$2
-  grep --color --recursive --include '*.v' "$pattern" "$path"
+  grep --line-number --color --recursive --include '*.v' "$pattern" "$path"
 }
 
 # Usage: runInBackground "CMD"
@@ -72,7 +72,7 @@ function runInBackground {
     logFileName=$(mktemp "runInBackground-$datestamp-XXXX")
   fi
   notice "running $cmd in background and logging output to $logFileName"
-  eval "{ $cmd; }" &>> $logFileNamea 2>&1 & disown $!
+  eval "{ $cmd; }" >> $logFileName 2>&1 & disown $!
   notice "kill process id $! to stop the command."
 }
 
@@ -100,16 +100,16 @@ function createWorkingCopy {
   local suffix=$5;
   if [[ $suffix == '' ]]
   then
-    suffix=(date +%m%d%y);
+    suffix=$(date +%m%d%y);
   fi
   notice "pid: $$"
   git clone git@github.com:sifive/RiscvSpecFormal.git "RiscvSpecFormal-$procKamiBranch-$suffix";
   cd "RiscvSpecFormal-$procKamiBranch-$suffix";
+  git checkout $riscvBranch;
+  notice "set RiscvSpecFormal branch"
   git submodule update --init;
   git submodule update --remote;
   git config credential.helper store;
-  git checkout $riscvBranch;
-  notice "set RiscvSpecFormal branch"
   cd ProcKami;
   git config credential.helper store;
   git checkout $procKamiBranch;
@@ -186,15 +186,15 @@ function runRiscvHaskellTests {
   watch "tail --lines 20 runTests64Haskell.out | cut -c-80; echo ===============; tail --lines 20 runTests32Haskell.out | cut -c-80"
 }
 
-# Usage: runRiscvHaskellTests
+# Usage: runRiscvCoqTests
 # Runs the RISC-V test suite in the Haskell Kami Processor simulator
 # and stores the resulting trace files in haskelldump.
 # Note: you must run doGenerate to generate the Haskell simulator
 # before running this command.
 function runRiscvCoqTests {
   rm -f runTests64.out runTests32.out
-  runInBackground "time srun --cpus-per-task=32 ./runTests.sh --coq-sim --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" "runTests64Coq.out"
-  runInBackground "time srun --cpus-per-task=32 ./runTests.sh --coq-sim --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 32" "runTests32Coq.out"
+  runInBackground "time srun --cpus-per-task=32 --mem=50G ./runTests.sh --coq-sim --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 64" "runTests64Coq.out"
+  runInBackground "time srun --cpus-per-task=32 --mem=55G ./runTests.sh --coq-sim --path /nettmp/netapp1a/vmurali/riscv-tests/isa --parallel --xlen 32" "runTests32Coq.out"
   watch "tail --lines 20 runTests64Coq.out | cut -c-80; echo ===============; tail --lines 20 runTests32Coq.out | cut -c-80"
 }
 
