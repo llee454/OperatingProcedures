@@ -58,6 +58,17 @@ function stringSearch {
   grep --line-number --color --recursive --include '*.v' "$pattern" "$path"
 }
 
+# Usage: stringSearch "PATTERN" PATH
+# Accepts two arguments: PATTERN, a string; and PATH, a file path;
+# and displays every instance of PATTERN in the Haskell files under
+# PATH.
+function stringSearchHaskell {
+  local pattern=$1
+  local path=$2
+  grep --line-number --color --recursive --include '*.hs' "$pattern" "$path"
+}
+
+
 # Usage: runInBackground "CMD"
 # Accepts two arguments: cmd, a bash command; and logFileName,
 # a file name string; and runs cmd in the background while logging
