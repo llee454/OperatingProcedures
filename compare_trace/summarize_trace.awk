@@ -4,8 +4,9 @@ BEGIN {
   lineNumber = 0
 }
 function pad(string, len, z) {
-  z = "0000000000000000"
-  return substr(substr(z, length(z) - len) string, length(string) + 1)
+  # z = "0000000000000000"
+  # return substr(substr(z, length(z) - len) string, length(string) + 1)
+  return string
 }
 {
   if (match ($0, "Config: { xlen:[0-3]; satp_mode:[0-9a-f]*; mode:([0-3]);", matches)) {

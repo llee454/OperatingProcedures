@@ -2,8 +2,9 @@ BEGIN {
   address_count = 0;
 }
 function pad(string, len, z) {
-  z = "0000000000000000";
-  return substr(substr(z, length(z) - len) string, length(string) + 1)
+  # z = "0000000000000000";
+  # return substr(substr(z, length(z) - len) string, length(string) + 1)
+  return string
 }
 {
   if (match ($0, "([[:digit:]]) 0x([0-9a-f]*) \\(0x([0-9a-f]*)\\)( x *[[:digit:]]* 0x([0-9a-f]*))?", a)) {
@@ -12,7 +13,7 @@ function pad(string, len, z) {
 
     output = x["instruction"];
     for (i = 0; i < address_count; i ++) {
-      output = output " dev paddr: " pad(x["addresses"][i], 16);
+      # output = output " dev paddr: " pad(x["addresses"][i], 16);
     } 
     print output;
     output = "";
